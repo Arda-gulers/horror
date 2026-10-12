@@ -1,0 +1,547 @@
+<meta charset="utf-8">
+<title>夜班 · 星火机械厂</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;900&family=Noto+Sans+SC:wght@400;500;700&family=Barlow+Condensed:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --ink: #0a0d0c;
+  --ink-2: #121715;
+  --paper: #d9d1bc;
+  --paper-2: #cbc2aa;
+  --paper-ink: #2b2620;
+  --stamp: #a8322a;
+  --amber: #e2aa4c;
+  --green: #86a88f;
+  --warn: #d8b24a;
+  --danger: #cf4632;
+  --hud: rgba(228, 222, 206, 0.9);
+  --hud-dim: rgba(228, 222, 206, 0.46);
+  --hud-faint: rgba(228, 222, 206, 0.18);
+  --serif: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  --sans: "Noto Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+  --num: "Barlow Condensed", "Arial Narrow", "Noto Sans SC", sans-serif;
+  --fang: "FangSong", "STFangsong", "Noto Serif SC", serif;
+  --kai: "KaiTi", "STKaiti", "Noto Serif SC", serif;
+  --rule: rgba(43, 38, 32, .28);
+  --dado: #35584a;
+}
+html, body { height: 100%; margin: 0; background: var(--ink); color: var(--hud); overflow: hidden; }
+body { font-family: var(--sans); -webkit-font-smoothing: antialiased; user-select: none; }
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; background: #000; cursor: crosshair; }
+.layer { position: fixed; inset: 0; pointer-events: none; }
+[hidden] { display: none !important; }
+
+/* ---------- HUD ---------- */
+#hud { transition: opacity .4s; }
+#reticle { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+#reticle .tk { position: absolute; background: var(--hud); box-shadow: 0 0 2px rgba(0,0,0,.9); transition: background .08s; }
+#reticle .tk.v { width: 2px; height: 9px; margin-left: -1px; }
+#reticle .tk.h { width: 9px; height: 2px; margin-top: -1px; }
+#rdot { position: absolute; width: 3px; height: 3px; margin: -1.5px 0 0 -1.5px; border-radius: 50%; background: var(--hud); box-shadow: 0 0 2px #000; }
+#rring { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 1.5px solid var(--amber); opacity: 0; transform: scale(1.6); transition: opacity .12s, transform .12s; box-shadow: 0 0 6px rgba(226,170,76,.35); }
+#reticle.focused #rring { opacity: .95; transform: scale(1); }
+#reticle.focused .tk { background: var(--amber); }
+#reticle.hit .tk { background: #fff; }
+#reticle.kill .tk { background: var(--danger); }
+#hitx { position: absolute; left: 50%; top: 50%; width: 0; height: 0; opacity: 0; }
+#hitx i { position: absolute; width: 10px; height: 2px; background: #fff; box-shadow: 0 0 2px #000; }
+#hitx i:nth-child(1) { transform: translate(5px, 5px) rotate(45deg); }
+#hitx i:nth-child(2) { transform: translate(-15px, 5px) rotate(-45deg); }
+#hitx i:nth-child(3) { transform: translate(5px, -7px) rotate(-45deg); }
+#hitx i:nth-child(4) { transform: translate(-15px, -7px) rotate(45deg); }
+#hitx.head i { background: var(--amber); width: 13px; }
+#hitx.kill i { background: var(--danger); width: 14px; }
+
+#dmgdir { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
+#dmgdir .arc { position: absolute; left: -90px; top: -90px; width: 180px; height: 180px; border-radius: 50%; border-top: 5px solid rgba(207, 70, 50, .9); filter: blur(1px); opacity: 0; }
+
+#ammo { position: absolute; right: max(28px, env(safe-area-inset-right)); bottom: 26px; text-align: right; font-family: var(--num); transition: opacity .5s; }
+#ammo .wname { font-family: var(--sans); font-size: 12px; letter-spacing: .18em; color: var(--hud-dim); }
+#ammo .count { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; margin-top: 2px; }
+#ammo .mag { font-size: 46px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+#ammo .chamber { font-size: 20px; color: var(--hud-dim); font-weight: 500; }
+#ammo .res { font-size: 22px; color: var(--hud-dim); font-variant-numeric: tabular-nums; }
+#ammo .pips { display: flex; gap: 3px; justify-content: flex-end; margin-top: 6px; height: 12px; }
+#ammo .pips i { width: 4px; height: 12px; background: var(--hud); border-radius: 1px; opacity: .9; }
+#ammo .pips i.shell { width: 7px; background: #b8473a; border-bottom: 3px solid #c9a24e; height: 9px; }
+#ammo .pips i.empty { opacity: .16; }
+#ammo.low .mag { color: var(--danger); }
+#ammo .hint { font-family: var(--sans); font-size: 12px; color: var(--amber); letter-spacing: .1em; height: 16px; margin-top: 4px; }
+
+#vitals { position: absolute; left: max(26px, env(safe-area-inset-left)); bottom: 24px; width: 220px; transition: opacity .6s; }
+#ecg { display: block; width: 220px; height: 54px; }
+#vitals .row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 2px; }
+#vstate { font-family: var(--sans); font-size: 13px; letter-spacing: .3em; font-weight: 700; }
+#vitals .items { font-family: var(--num); font-size: 16px; color: var(--hud-dim); letter-spacing: .04em; }
+#stam { height: 3px; background: var(--hud-faint); margin-top: 6px; overflow: hidden; opacity: 0; transition: opacity .3s; }
+#stam i { display: block; height: 100%; width: 100%; background: var(--hud-dim); transform-origin: left; }
+#stam.exhausted i { background: var(--danger); }
+
+#prompt { position: absolute; left: 50%; bottom: 23%; transform: translateX(-50%); font-size: 15px; letter-spacing: .08em; padding: 6px 14px; background: rgba(6, 8, 7, .55); border-left: 2px solid var(--amber); white-space: nowrap; opacity: 0; transition: opacity .15s; }
+#prompt b { font-family: var(--num); font-weight: 700; color: var(--amber); margin-right: 8px; font-size: 17px; }
+#sub { position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%); width: min(760px, 86vw); text-align: center; font-size: 17px; line-height: 1.6; text-shadow: 0 1px 3px #000, 0 0 12px #000; opacity: 0; transition: opacity .3s; }
+#sub .who { color: var(--amber); margin-right: .6em; font-weight: 500; }
+#obj { position: absolute; left: max(26px, env(safe-area-inset-left)); top: 24px; max-width: 340px; transition: opacity .6s; }
+#obj .lab { font-size: 11px; letter-spacing: .32em; color: var(--hud-dim); }
+#obj .txt { font-family: var(--serif); font-size: 18px; margin-top: 4px; font-weight: 600; text-shadow: 0 1px 3px #000; }
+#toasts { position: absolute; right: max(28px, env(safe-area-inset-right)); top: 24px; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+#toasts div { font-size: 14px; padding: 5px 12px; background: rgba(6,8,7,.6); border-right: 2px solid var(--green); animation: toast 3.2s forwards; }
+@keyframes toast { 0% { opacity: 0; transform: translateX(12px); } 8% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+#grab { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); text-align: center; opacity: 0; transition: opacity .1s; }
+#grab .meter { width: 240px; height: 8px; background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.35); margin: 0 auto 10px; }
+#grab .meter i { display: block; height: 100%; width: 0; background: #e8e0cc; }
+#grab .keys { display: flex; gap: 18px; justify-content: center; font-size: 15px; letter-spacing: .08em; text-shadow: 0 1px 3px #000; }
+#grab .keys b { font-family: var(--num); color: var(--amber); font-size: 18px; margin-right: 6px; }
+#grab .keys .off { opacity: .35; }
+#heal { position: absolute; left: 50%; top: 60%; transform: translateX(-50%); width: 180px; text-align: center; font-size: 13px; letter-spacing: .2em; opacity: 0; }
+#heal .meter { height: 4px; background: rgba(255,255,255,.18); margin-top: 6px; }
+#heal .meter i { display: block; height: 100%; width: 0; background: var(--green); }
+#focusFlash { position: absolute; inset: 0; box-shadow: inset 0 0 120px rgba(226,170,76,.0); transition: box-shadow .25s; }
+
+/* ---------- Screens ---------- */
+.screen { position: fixed; inset: 0; pointer-events: auto; overflow-y: auto; }
+.btn { font-family: var(--sans); font-size: 15px; letter-spacing: .14em; color: var(--paper); background: transparent; border: 1px solid rgba(217, 209, 188, .35); padding: 11px 22px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; text-align: left; }
+.btn:hover, .btn:focus-visible { background: rgba(217, 209, 188, .1); border-color: var(--paper); outline: none; }
+.btn.primary { background: var(--stamp); border-color: var(--stamp); color: #f4ead6; font-weight: 700; }
+.btn.primary:hover, .btn.primary:focus-visible { background: #bb3b31; }
+a.btn { display: inline-block; text-decoration: none; }
+
+#title { background: radial-gradient(ellipse at 30% 40%, #18201c 0%, #0a0d0c 60%) , var(--ink); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); align-items: center; gap: clamp(20px, 5vw, 80px); padding-inline: clamp(16px, 6vw, 96px); padding-block: 40px; box-sizing: border-box; }
+#title .brand { display: flex; gap: 22px; align-items: flex-start; }
+#title .big { font-family: var(--serif); font-weight: 900; font-size: clamp(88px, 14vw, 200px); line-height: .92; writing-mode: vertical-rl; letter-spacing: .06em; color: #e9e1cd; text-shadow: 0 0 40px rgba(226,170,76,.08); }
+#title .brandside { writing-mode: vertical-rl; font-family: var(--serif); font-size: 15px; letter-spacing: .5em; color: var(--hud-dim); padding-top: 8px; }
+#title .brandside b { color: var(--amber); font-weight: 600; }
+.order { position: relative; background: var(--paper); color: var(--paper-ink); padding: 34px 38px 58px; max-width: 620px; font-family: var(--serif); box-shadow: 0 30px 60px rgba(0,0,0,.55); transform: rotate(-.6deg); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 1px, transparent 1px 3px), radial-gradient(ellipse at 80% 10%, rgba(120, 90, 40, .12), transparent 60%); }
+.order h1 { margin: 0; font-size: 24px; letter-spacing: .5em; text-align: center; font-weight: 900; }
+.order .no { text-align: right; font-family: var(--num); font-size: 14px; letter-spacing: .08em; margin-top: 8px; color: #5b5146; }
+.order dl { display: grid; grid-template-columns: 5.2em minmax(0, 1fr); gap: 9px 12px; margin: 18px 0 0; font-size: 15.5px; line-height: 1.55; }
+.order dt { font-weight: 600; letter-spacing: .35em; }
+.order dd { margin: 0; border-bottom: 1px solid rgba(43,38,32,.28); padding-bottom: 4px; }
+.order .stamp { position: absolute; right: 20px; bottom: 12px; width: 106px; height: 106px; border-radius: 50%; border: 3px solid var(--stamp); color: var(--stamp); display: grid; place-items: center; font-weight: 900; font-size: 15px; letter-spacing: .2em; transform: rotate(-14deg); opacity: .78; mix-blend-mode: multiply; text-align: center; line-height: 1.35; }
+.order .stamp::before { content: "★"; position: absolute; top: 28px; font-size: 19px; }
+.order .stamp span { margin-top: 30px; font-size: 14px; }
+.menu { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+.controls { margin-top: 22px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 18px; font-size: 13px; color: var(--hud-dim); max-width: 620px; }
+.controls b { font-family: var(--num); font-weight: 600; color: var(--hud); display: inline-block; min-width: 3.4em; margin-right: .5em; letter-spacing: .04em; }
+.fine { font-size: 12px; color: var(--hud-dim); margin-top: 16px; line-height: 1.7; max-width: 620px; }
+
+#loading { background: var(--ink); display: grid; place-items: center; font-family: var(--serif); letter-spacing: .4em; color: var(--hud-dim); }
+#loading .bar { width: 220px; height: 2px; background: var(--hud-faint); margin-top: 16px; }
+#loading .bar i { display: block; height: 100%; width: 0; background: var(--amber); transition: width .2s; }
+
+#pause, #death, #results { background: rgba(5, 7, 6, .82); display: grid; place-items: center; padding-inline: 16px; }
+.panel { width: min(520px, 100%); }
+.panel h2 { font-family: var(--serif); font-size: 30px; letter-spacing: .3em; margin: 0 0 18px; font-weight: 900; color: #ece4d0; }
+.panel .col { display: flex; flex-direction: column; gap: 9px; }
+#death h2 { color: var(--danger); letter-spacing: .12em; font-size: 26px; line-height: 1.5; }
+#death p { color: var(--hud-dim); line-height: 1.8; margin: 0 0 22px; }
+
+#tune { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100%); background: rgba(12, 15, 14, .96); border-left: 1px solid rgba(255,255,255,.08); padding: 20px 20px 30px; box-sizing: border-box; overflow-y: auto; pointer-events: auto; font-size: 13px; }
+#tune h3 { font-family: var(--serif); font-size: 18px; letter-spacing: .2em; margin: 0 0 4px; }
+#tune .sub { color: var(--hud-dim); margin-bottom: 14px; line-height: 1.6; }
+#tune h4 { font-size: 11px; letter-spacing: .3em; color: var(--amber); margin: 18px 0 8px; font-weight: 500; }
+#tune label { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.05); cursor: pointer; }
+#tune label small { grid-column: 1 / -1; color: var(--hud-dim); font-size: 11.5px; line-height: 1.5; }
+#tune input[type=range] { grid-column: 1 / -1; width: 100%; accent-color: var(--amber); }
+#tune input[type=checkbox] { accent-color: var(--amber); width: 16px; height: 16px; }
+#tune .val { font-family: var(--num); font-size: 15px; color: var(--hud); }
+#tune .row2 { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+#tune .row2 .btn { padding: 7px 12px; font-size: 13px; }
+
+#note { background: rgba(4, 5, 5, .78); display: grid; place-items: center; padding-inline: 16px; }
+#note .paper { background: var(--paper); color: var(--paper-ink); width: min(560px, 100%); max-height: 84vh; overflow-y: auto; padding: 34px 40px; box-sizing: border-box; font-family: var(--serif); font-size: 16px; line-height: 1.9; box-shadow: 0 30px 70px rgba(0,0,0,.6); background-image: repeating-linear-gradient(0deg, rgba(0,0,0,.02) 0 1px, transparent 1px 3px); }
+#note .paper h3 { text-align: center; letter-spacing: .3em; margin: 0 0 4px; font-size: 20px; font-weight: 900; }
+#note .paper .meta { text-align: center; font-size: 13px; color: #6a5f52; margin-bottom: 16px; letter-spacing: .1em; }
+#note .paper ol { padding-left: 1.4em; margin: 0; }
+#note .paper li { margin-bottom: .55em; }
+#note .paper .hand { font-family: var(--sans); color: #1e3a6b; font-style: italic; }
+#note .close { text-align: center; margin-top: 14px; font-size: 13px; color: var(--hud-dim); letter-spacing: .2em; }
+
+#results .panel { width: min(600px, 100%); }
+#results .rank { font-family: var(--serif); font-size: 44px; font-weight: 900; color: var(--stamp); border: 3px solid var(--stamp); display: inline-block; padding: 4px 18px; transform: rotate(-4deg); margin-bottom: 18px; letter-spacing: .1em; }
+#results table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 22px; }
+#results td { padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+#results td:last-child { text-align: right; font-family: var(--num); font-size: 18px; font-variant-numeric: tabular-nums; }
+#results p { color: var(--hud-dim); line-height: 1.8; font-family: var(--serif); }
+
+/* ---------- Design dossier (red-header document conventions: 黑体 level one, 楷体 level two) ---------- */
+#doc { background: rgba(4, 5, 5, .93); padding-inline: 16px; padding-block: 0 64px; box-sizing: border-box; }
+#doc .docbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 16px; max-width: 800px; margin: 0 auto; padding-block: 14px 18px; background: linear-gradient(rgba(4, 5, 5, .97) 72%, rgba(4, 5, 5, 0)); }
+#doc .docbar .btn { padding: 8px 18px; }
+#doc .docbar span { font-size: 13px; letter-spacing: .3em; color: var(--hud-dim); }
+#doc .docbar .doclink { margin-left: auto; font-size: 13px; letter-spacing: .1em; color: var(--amber); }
+#doc .dossier { max-width: 800px; margin: 0 auto; box-sizing: border-box; padding: clamp(26px, 5vw, 60px) clamp(18px, 5.5vw, 66px) clamp(34px, 5vw, 64px); background: var(--paper); color: var(--paper-ink); box-shadow: 0 30px 70px rgba(0, 0, 0, .6); background-image: repeating-linear-gradient(0deg, rgba(0, 0, 0, .018) 0 1px, transparent 1px 3px); font-family: var(--serif); font-size: 16.5px; line-height: 1.9; user-select: text; -webkit-user-select: text; }
+#doc .masthead { text-align: center; }
+#doc .org { font-family: var(--fang); font-size: 15px; letter-spacing: .5em; color: var(--stamp); }
+#doc h1 { font-family: var(--serif); font-weight: 900; color: var(--stamp); font-size: clamp(28px, 5.4vw, 44px); line-height: 1.25; letter-spacing: .12em; margin: 8px 0 6px; text-wrap: balance; }
+#doc .docno { font-family: var(--fang); font-size: 15px; letter-spacing: .08em; }
+#doc .redline { position: relative; height: 2px; background: var(--stamp); margin: 16px 0 24px; }
+#doc .redline span { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -52%); background: var(--paper); color: var(--stamp); padding: 0 12px; font-size: 17px; line-height: 1; }
+#doc .docmeta { display: grid; grid-template-columns: 4em minmax(0, 1fr); gap: 4px 14px; margin: 0; font-family: var(--fang); font-size: 15.5px; line-height: 1.7; }
+#doc .docmeta dt { font-weight: 700; letter-spacing: .3em; }
+#doc .docmeta dd { margin: 0; }
+#doc .toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0 22px; margin: 22px 0 6px; padding-block: 12px; border-block: 1px solid var(--rule); font-family: var(--sans); font-size: 14px; line-height: 2; }
+#doc .toc a { color: var(--paper-ink); text-decoration: none; }
+#doc .toc a:hover, #doc .toc a:focus-visible { color: var(--stamp); text-decoration: underline; outline: none; }
+#doc section { scroll-margin-top: 70px; }
+#doc h2 { font-family: var(--sans); font-weight: 700; font-size: 21px; letter-spacing: .06em; margin: 1.9em 0 .55em; line-height: 1.5; text-wrap: balance; }
+#doc h2 i { font-style: normal; color: var(--stamp); }
+#doc h3 { font-family: var(--kai); font-weight: 700; font-size: 18px; margin: 1.2em 0 .2em; line-height: 1.6; }
+#doc p { margin: .45em 0; text-align: justify; }
+#doc ul { margin: .5em 0; padding-left: 1.3em; }
+#doc li { margin: .3em 0; }
+#doc b { font-family: var(--sans); font-weight: 700; }
+#doc .loop { list-style: none; padding: 0; margin: .6em 0 .8em; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 0; font-family: var(--sans); font-size: 15px; }
+#doc .loop li { margin: 0; padding: 3px 10px; border: 1px solid var(--rule); background: rgba(255, 255, 255, .22); }
+#doc .loop li + li::before { content: "→"; color: var(--stamp); position: absolute; margin-left: -27px; }
+#doc .loop li + li { margin-left: 20px; }
+#doc .rule { margin: .8em 0; padding: 8px 16px; border-left: 3px solid var(--stamp); background: rgba(168, 50, 42, .07); font-family: var(--kai); font-size: 17px; text-align: left; }
+#doc .tw { overflow-x: auto; margin: .8em 0 1em; }
+#doc table { width: 100%; min-width: 520px; border-collapse: collapse; font-family: var(--sans); font-size: 14.5px; line-height: 1.6; }
+#doc th, #doc td { border: 1px solid var(--rule); padding: 6px 10px; text-align: left; vertical-align: top; }
+#doc th { background: rgba(53, 88, 74, .14); color: #22372e; font-weight: 700; white-space: nowrap; }
+#doc .n { font-family: var(--num); font-size: 16.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#doc kbd { font-family: var(--num); font-weight: 700; font-size: 15px; padding: 0 6px; border: 1px solid var(--rule); border-bottom-width: 2px; background: rgba(255, 255, 255, .3); }
+#doc .end { margin-top: 2.4em; text-align: right; font-family: var(--fang); font-size: 15px; }
+
+#clickToResume { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); background: rgba(5,7,6,.8); padding: 16px 26px; font-size: 15px; letter-spacing: .2em; pointer-events: auto; cursor: pointer; border: 1px solid rgba(255,255,255,.2); }
+
+@media (max-width: 820px) {
+  #title { grid-template-columns: minmax(0, 1fr); }
+  #title .big { writing-mode: horizontal-tb; font-size: 72px; }
+  #title .brandside { writing-mode: horizontal-tb; letter-spacing: .2em; }
+  .order { padding: 24px 20px; }
+}
+@media (prefers-reduced-motion: reduce) { #toasts div { animation-duration: .01s; } }
+</style>
+
+<canvas id="game"></canvas>
+
+<div id="hud" class="layer" hidden>
+  <div id="focusFlash"></div>
+  <div id="reticle"><i class="tk v" id="tkT"></i><i class="tk v" id="tkB"></i><i class="tk h" id="tkL"></i><i class="tk h" id="tkR"></i><i id="rdot"></i><i id="rring"></i></div>
+  <div id="hitx"><i></i><i></i><i></i><i></i></div>
+  <div id="dmgdir"></div>
+  <div id="obj"><div class="lab">当前任务</div><div class="txt" id="objTxt"></div></div>
+  <div id="toasts"></div>
+  <div id="sub"></div>
+  <div id="prompt"></div>
+  <div id="grab"><div class="meter"><i id="grabFill"></i></div><div class="keys"><span id="grabKick"><b>V</b>挣脱</span><span id="grabShot"><b>左键</b>抵近射击</span></div></div>
+  <div id="heal">包扎中<div class="meter"><i id="healFill"></i></div></div>
+  <div id="vitals">
+    <canvas id="ecg" width="440" height="108"></canvas>
+    <div class="row"><span id="vstate">良好</span><span class="items" id="vitems"></span></div>
+    <div id="stam"><i id="stamFill"></i></div>
+  </div>
+  <div id="ammo">
+    <div class="wname" id="wname"></div>
+    <div class="count"><span class="mag" id="amag">8</span><span class="chamber" id="achamber"></span><span class="res" id="ares">/ 16</span></div>
+    <div class="pips" id="apips"></div>
+    <div class="hint" id="ahint"></div>
+  </div>
+</div>
+
+<div id="loading" class="screen"><div>正在调阅档案<div class="bar"><i id="loadFill"></i></div></div></div>
+
+<div id="title" class="screen" hidden>
+  <div class="brand">
+    <div class="big">夜班</div>
+    <div class="brandside">星火机械厂 · <b>三号车间</b></div>
+  </div>
+  <div>
+    <div class="order">
+      <h1>外勤派遣单</h1>
+      <div class="no">第三处 · 外字 第 0417 号</div>
+      <dl>
+        <dt>地点</dt><dd>星火机械厂 三号车间（更衣室入口）</dd>
+        <dt>事由</dt><dd>该车间夜班于1983年11月7日零时开始，至今没有结束。</dd>
+        <dt>任务</dt><dd>进入车间，查明并终止异常源。遵守车间张贴的守则。</dd>
+        <dt>配发</dt><dd>54式手枪一支，子弹十六发，手电筒一支。</dd>
+        <dt>备注</dt><dd>车间里的人不再是工人。不要与之交谈。</dd>
+      </dl>
+      <div class="stamp"><span>第三处<br>外勤专用</span></div>
+    </div>
+    <div class="menu">
+      <button class="btn primary" id="btnStart" type="button">进入车间</button>
+      <button class="btn" id="btnTune" type="button">手感调试</button>
+      <button class="btn" id="btnDesign" type="button">设计说明</button>
+    </div>
+    <div class="controls">
+      <span><b>WASD</b>移动</span><span><b>Shift</b>奔跑</span><span><b>鼠标右键</b>瞄准（静止可聚焦）</span>
+      <span><b>鼠标左键</b>射击</span><span><b>R</b>装填</span><span><b>V / 空格</b>踢击 · 挣脱 · 踩踏</span>
+      <span><b>F</b>手电筒</span><span><b>Q</b>包扎</span><span><b>E</b>拾取 · 阅读</span>
+      <span><b>1 / 2</b>切换武器</span><span><b>Esc</b>暂停</span><span><b>Tab</b>查看任务</span>
+    </div>
+    <p class="fine">建议佩戴耳机：敌人的位置主要靠声音判断。首次点击会锁定鼠标并开启声音。</p>
+  </div>
+</div>
+
+<div id="pause" class="screen" hidden>
+  <div class="panel">
+    <h2>暂停</h2>
+    <div class="col">
+      <button class="btn primary" id="btnResume" type="button">继续</button>
+      <button class="btn" id="btnTune2" type="button">手感调试</button>
+      <button class="btn" id="btnRetry" type="button">从检查点重来</button>
+      <button class="btn" id="btnDesign2" type="button">设计说明</button>
+    </div>
+  </div>
+</div>
+
+<div id="death" class="screen" hidden>
+  <div class="panel">
+    <h2 id="deathTitle">你已被登记为在岗人员。</h2>
+    <p id="deathText">工号自动分配。夜班将继续。</p>
+    <div class="col">
+      <button class="btn primary" id="btnContinue" type="button">从检查点继续</button>
+    </div>
+  </div>
+</div>
+
+<div id="results" class="screen" hidden>
+  <div class="panel">
+    <div class="rank" id="rank">先进工作者</div>
+    <h2>下班了</h2>
+    <p id="resText"></p>
+    <table id="resTable"></table>
+    <div class="col">
+      <button class="btn primary" id="btnAgain" type="button">再上一次夜班</button>
+    </div>
+  </div>
+</div>
+
+<div id="note" class="screen" hidden>
+  <div>
+    <div class="paper" id="notePaper"></div>
+    <div class="close">按 E 或 Esc 放下</div>
+  </div>
+</div>
+
+<div id="doc" class="screen" hidden>
+  <div class="docbar"><button class="btn" id="docClose" type="button">返回</button><span>按 Esc 返回</span><a class="doclink" href="https://claude.ai/artifact/L1z6Wujucwrdq6eGBegvxF" target="_blank" rel="noopener">在新页面打开设计文档</a></div>
+  <article class="dossier">
+    <header class="masthead">
+      <div class="org">星火机械厂三号车间</div>
+      <h1>夜班战斗设计说明</h1>
+      <div class="docno">外技〔1983〕0417号附件</div>
+      <div class="redline"><span>★</span></div>
+    </header>
+    <dl class="docmeta">
+      <dt>类型</dt><dd>新怪谈 · 写实动作射击 · 生存恐怖</dd>
+      <dt>范围</dt><dd>一个完整的战斗关卡：更衣室、走廊、保卫科、前厅、三号车间</dd>
+      <dt>时长</dt><dd>首次通关约十分钟</dd>
+      <dt>操作</dt><dd>键盘与鼠标，建议佩戴耳机</dd>
+    </dl>
+    <nav class="toc" aria-label="目录">
+      <a href="#d1">一、设计目标</a><a href="#d2">二、战斗循环</a><a href="#d3">三、射击手感</a><a href="#d4">四、聚焦瞄准与武器</a>
+      <a href="#d5">五、空壳工人</a><a href="#d6">六、身体对抗</a><a href="#d7">七、考勤钟</a><a href="#d8">八、广播与巡夜人</a>
+      <a href="#d9">九、车间主任</a><a href="#d10">十、资源与节奏</a><a href="#d11">十一、战斗表达</a><a href="#d12">十二、公平性</a>
+      <a href="#d13">十三、手感调试面板</a><a href="#d14">十四、操作</a><a href="#d15">十五、实现</a>
+    </nav>
+
+    <section id="d1">
+      <h2><i>一、</i>设计目标</h2>
+      <p>这一关要解决的问题是：在子弹稀缺、规则陌生的封闭车间里，射击怎样同时带来力量感和恐惧感。写实动作射击负责重量与后果，新怪谈负责一套可以学习、却始终透着异样的规则。整关围绕三条支柱展开。</p>
+      <ul>
+        <li><b>每一发都有后果。</b>弹药有限，命中按部位结算，敌人倒地不等于死亡。开枪之前的判断与开枪本身同样重要。</li>
+        <li><b>规则就是机制。</b>墙上的守则同时是叙事、教程和战斗规则。异常遵循内部逻辑，读懂规则的玩家就能反制它。</li>
+        <li><b>近身有压迫，也有反制。</b>敌人会扑抓，玩家可以踢、踩、抵近射击。身体对抗是弹药之外的第二条资源线。</li>
+      </ul>
+    </section>
+
+    <section id="d2">
+      <h2><i>二、</i>战斗循环</h2>
+      <ol class="loop"><li>听声辨位</li><li>站定瞄准</li><li>部位射击</li><li>击倒</li><li>击碎面部确认</li><li>搜集补给</li></ol>
+      <p>循环的每一步都有一个可感知的信号：哼唱声标出敌人的位置，准星收拢标出开枪的时机，面部裂纹标出剩余耐久，面部碎裂标出确认完成。玩家依据看得见、听得见的信息做决定，屏幕上没有敌人血条。</p>
+    </section>
+
+    <section id="d3">
+      <h2><i>三、</i>射击手感：四层反馈分开处理</h2>
+      <p>射击手感失真的常见原因，是把性质不同的反馈混进同一个镜头运动：为了冲击感加大后坐，精度随之变差；为了精度削弱后坐，枪又显得轻飘。这里把开枪后的反馈拆成四层，每层只负责一件事。</p>
+      <div class="tw"><table>
+        <tr><th>反馈层</th><th>表现</th><th>影响弹着点</th><th>用途</th></tr>
+        <tr><td>瞄准后坐</td><td>枪口上跳，约八成自动回正</td><td>是</td><td>连射需要压枪，射速与精度形成取舍</td></tr>
+        <tr><td>视觉冲击</td><td>镜头短促上顶、侧滚后回弹</td><td>否</td><td>提供冲击感，不惩罚准确度</td></tr>
+        <tr><td>屏幕震动</td><td>强度取“创伤值”的平方</td><td>否</td><td>小事件几乎无感，霰弹和撞击明显</td></tr>
+        <tr><td>枪模动作</td><td>后移、上跳、回弹；套筒、泵动、换弹</td><td>否</td><td>动作可读：何时能再开枪，一看便知</td></tr>
+      </table></div>
+      <p>命中停顿与慢动作只缩放世界时间，镜头转动和输入始终按真实时间处理，因此顿帧期间依然可以转向，操作不会被卡住。开火输入有 <span class="n">0.14</span> 秒缓冲，射击间隔内的点击不会丢失；从奔跑转入射击有一段短暂的抬枪时间。</p>
+      <p>枪声由机械声、爆音和尾音三层合成，并按所在房间叠加不同的混响。敌人的受击形变由命中部位和子弹方向驱动的弹簧计算，同样一发子弹，打在肩上和打在头上的反应完全不同。</p>
+    </section>
+
+    <section id="d4">
+      <h2><i>四、</i>聚焦瞄准与武器</h2>
+      <p>按住右键并保持静止，手枪的瞄准散布在约 <span class="n">0.8</span> 秒内从 <span class="n">1.6°</span> 收拢到 <span class="n">0.12°</span>。收拢完成时准星变为琥珀色圆环，并伴随一声轻响。聚焦状态下的爆头伤害再乘 <span class="n">1.5</span>，一枪即可击碎普通工人的面部。移动会让聚焦重新开始。</p>
+      <p>恐怖游戏里最常见的本能是后退和乱射。聚焦机制奖励相反的行为：在威胁逼近时站定，把紧张转化为一次精确的操作。“稳住”因此成为一个看得见、听得见的决定，熟练玩家与新手的差距也集中体现在这里。</p>
+      <div class="tw"><table>
+        <tr><th>参数</th><th>54式手枪</th><th>五连发猎枪</th></tr>
+        <tr><td>弹容</td><td><span class="n">8</span> + 膛内 <span class="n">1</span></td><td><span class="n">5</span></td></tr>
+        <tr><td>单发伤害</td><td><span class="n">34</span></td><td><span class="n">15</span> × <span class="n">9</span> 颗弹丸</td></tr>
+        <tr><td>爆头倍率</td><td><span class="n">2.5</span>，聚焦时再乘 <span class="n">1.5</span></td><td><span class="n">1.6</span></td></tr>
+        <tr><td>腰射散布</td><td><span class="n">3.0°</span></td><td><span class="n">5.0°</span></td></tr>
+        <tr><td>瞄准散布（聚焦前后）</td><td><span class="n">1.6° → 0.12°</span></td><td><span class="n">3.8° → 2.7°</span></td></tr>
+        <tr><td>聚焦时间</td><td><span class="n">0.8</span> 秒</td><td><span class="n">0.55</span> 秒</td></tr>
+        <tr><td>装填</td><td><span class="n">1.35</span> 秒，空仓 <span class="n">1.8</span> 秒</td><td>每发 <span class="n">0.5</span> 秒，开火即中断</td></tr>
+        <tr><td>特性</td><td>聚焦爆头一枪确认</td><td><span class="n">5.5</span> 米内 <span class="n">5</span> 颗以上弹丸命中即击倒</td></tr>
+      </table></div>
+      <p>两把枪分工明确：手枪负责远距离的精确确认，猎枪负责近距离的控制与解围。猎枪弹药更少，因此更适合作为应急手段。</p>
+    </section>
+
+    <section id="d5">
+      <h2><i>五、</i>空壳工人</h2>
+      <p>车间里的工人仍在工位上重复作业，瓷质的脸上画着闭着的眼睛。他们的行为由几条规则组成，每一条都对应一个可以学会的对策。</p>
+      <h3>察觉</h3>
+      <p>仍在工位上的工人靠视线察觉玩家，察觉前有一个逐渐转头的过程，玩家可以抢先开火或退出视线。被手电照亮时，察觉距离从 <span class="n">12</span> 米延长到 <span class="n">21</span> 米。</p>
+      <h3>部位伤害</h3>
+      <p>头部、躯干、手臂、腿部分别判定。腿部耐久耗尽后工人转为爬行；头部每次受击都会在面部留下裂纹，裂纹的范围就是剩余耐久。</p>
+      <h3>倒下不算数</h3>
+      <p>躯干耐久归零时，工人只是倒地“休息”，面部碎裂才算确认。倒地者会在数秒后按概率站起，被玩家注视时概率较低。确认有两种方式：再花一颗子弹，或者走近低头踩踏。前者消耗弹药，后者把玩家带回危险距离。</p>
+      <h3>失衡与击倒</h3>
+      <p>每次命中都会累积失衡值，超过阈值进入硬直，打断正在进行的动作。猎枪在近距离的多发命中直接将其击倒。</p>
+      <h3>哼唱与停顿</h3>
+      <p>追击中的工人哼着厂歌，声音按位置做空间化处理，并受墙体遮挡。扑击之前，哼唱会突然停止，随后是 <span class="n">0.62</span> 秒的蓄力。声音中断就是攻击预警，戴耳机的玩家不回头也能判断背后的威胁。</p>
+      <h3>攻击令牌</h3>
+      <p>同一时间最多两名工人发起攻击，两次攻击之间至少间隔 <span class="n">0.45</span> 秒，其余工人放慢脚步在外围徘徊。人数带来压力，但不会出现无法反应的同时扑击。</p>
+      <h3>跳帧前进</h3>
+      <p>距离玩家 <span class="n">4.5</span> 米以外时，工人会像胶片缺帧一样突然前移一段。这种动作只在远处制造不安；进入近距离后不再跳帧，躲避和反制的判断始终有效。</p>
+      <h3>视野之外</h3>
+      <p>不在玩家视野中的工人移动速度提高四分之一。回头查看和听声辨位因此具有实际价值。</p>
+    </section>
+
+    <section id="d6">
+      <h2><i>六、</i>身体对抗：抓取、踢击、踩踏</h2>
+      <h3>抓取</h3>
+      <p>工人扑中后会抓住玩家，视角被拉向它的脸，<span class="n">2.1</span> 秒后咬下。枪里有子弹时直接开枪，抵近射击伤害加倍并立即挣脱；没有子弹时连续按 <kbd>V</kbd> 或空格挣脱，挣脱成功会把对方推倒。</p>
+      <h3>踢击</h3>
+      <p><kbd>V</kbd> 键踢击，不消耗弹药。踢中正在蓄力的工人会直接将其踢倒：听到哼唱停止的瞬间出脚，就是一次完整的反制。</p>
+      <h3>踩踏</h3>
+      <p>对倒地的工人踢击即踩踏面部。它是弹药耗尽时的确认手段，也迫使玩家靠近。</p>
+      <p>近战为弹药系统提供了缓冲：子弹充足时它是一种选择，子弹耗尽时它是出路。</p>
+    </section>
+
+    <section id="d7">
+      <h2><i>七、</i>考勤钟</h2>
+      <p>考勤钟立在车间尽头，是整个异常的源头。钟面挡子弹；它每隔一段时间报时，报时时钟面打开，里面的眼睛注视玩家，这是唯一的伤害窗口。注视期间，车间里的工人移动加快三成。伤害窗口与最大的威胁同时出现，玩家必须在输出与自保之间分配注意力。</p>
+      <p>报时之前钟摆加速、滴答声变密，形成明确的倒计时。报时的下数逐次增加。守则第一条写着“考勤钟不会敲响六下”；一旦敲满六下，夜班延长，报时间隔缩短，出现的工人增多。拖延会让局面持续恶化。</p>
+      <div class="tw"><table>
+        <tr><th>钟体耐久</th><th>破坏之后</th></tr>
+        <tr><td>第一段</td><td>广播事件：厂歌走调，巡夜人出现</td></tr>
+        <tr><td>第二段</td><td>车间主任撞开仓库门</td></tr>
+        <tr><td>第三段</td><td>夜班结束</td></tr>
+      </table></div>
+      <p>前厅的考勤卡背面写着它的弱点。线索放在进入车间之前，玩家带着一个假设进入战斗，再在战斗中验证它。</p>
+    </section>
+
+    <section id="d8">
+      <h2><i>八、</i>广播事件与巡夜人</h2>
+      <p class="rule">守则第二条：车间广播只播放厂歌。若旋律走调，立即关闭一切照明，停止作业，不要奔跑，直到厂歌恢复。</p>
+      <p>第一段钟体被破坏后，广播开始播放走调的厂歌，持续 <span class="n">28</span> 秒。灯光转红，工人停下聆听，几秒后巡夜人出现在车间里。它无法被伤害，能感知 <span class="n">22</span> 米内视线可及的手电光、<span class="n">10</span> 米内的奔跑、<span class="n">32</span> 米内的枪声，以及 <span class="n">2.4</span> 米内的一切。被它抓住会受到重创并被击飞。</p>
+      <p>玩家此前依赖的三样东西：手电、枪和奔跑，在这 <span class="n">28</span> 秒里全部变成暴露自己的方式。可行的做法是关灯、停火、慢走，等待厂歌恢复。聆听中的工人被踢中会直接倒地，玩家也可以安静地处理身边的威胁。违反守则的次数计入结算。</p>
+    </section>
+
+    <section id="d9">
+      <h2><i>九、</i>车间主任</h2>
+      <p>第二段钟体被破坏后，车间主任撞开仓库门进入战场。它体型更大，躯干耐久 <span class="n">330</span>、头部 <span class="n">170</span>，头部的铁面罩还会先吸收 <span class="n">90</span> 点伤害。</p>
+      <p>主任在中距离会停步咆哮 <span class="n">0.9</span> 秒，然后以每秒 <span class="n">6.2</span> 米的速度直线冲撞。躲避冲撞的方法是横移；它撞上机床或墙壁后会眩晕 <span class="n">2.2</span> 秒，这时一脚就能将其踢倒，随后射击或踩踏面部。</p>
+      <p>主任的威胁来自空间，解法同样来自空间。机床和立柱从掩体变成武器，走位本身就是输出手段。主动后撤拉开距离，会诱发它的下一次冲撞。</p>
+    </section>
+
+    <section id="d10">
+      <h2><i>十、</i>资源与节奏</h2>
+      <h3>补给</h3>
+      <p>开局配发 <span class="n">16</span> 发备弹。补给点固定分布在更衣室、走廊、保卫科、前厅和车间两侧；车间内的补给远离大门，迫使玩家离开安全的角落。</p>
+      <h3>动态补给</h3>
+      <p>弹药总量低于 <span class="n">10</span> 发时，被确认的工人有六成概率掉落少量子弹；生命偏低且没有急救包时，有三成概率掉落急救包。它的作用是防止死局，掉落量不足以支持浪费。</p>
+      <h3>包扎</h3>
+      <p><kbd>Q</kbd> 键包扎，耗时 <span class="n">2.3</span> 秒，恢复 <span class="n">55</span> 点生命，期间不能开火。何时包扎本身就是一次风险判断。</p>
+      <h3>检查点</h3>
+      <p>进入前厅时记录检查点。在车间中死亡会从前厅重来：车间完全重置，物资恢复到进入车间时的状态，弹药过少时补足一部分。</p>
+      <h3>遭遇编排</h3>
+      <div class="tw"><table>
+        <tr><th>区域</th><th>遭遇</th><th>目的</th></tr>
+        <tr><td>更衣室</td><td>面对储物柜的工人，倒地后会站起一次</td><td>教会“倒下不算数”</td></tr>
+        <tr><td>走廊</td><td>远处两名面壁的工人；经过洗手间时门被撞开</td><td>第一次在黑暗中听声辨位；一次惊吓</td></tr>
+        <tr><td>保卫科</td><td>拿起猎枪时，地上的保卫员站起</td><td>得到力量的同一刻遭遇反扑</td></tr>
+        <tr><td>前厅</td><td>补给、检查点、考勤卡</td><td>战前的安静，给出考勤钟的线索</td></tr>
+        <tr><td>三号车间</td><td>大门在身后关闭；报时波次、广播事件、车间主任</td><td>在持续压力下运用前面学到的全部规则</td></tr>
+      </table></div>
+    </section>
+
+    <section id="d11">
+      <h2><i>十一、</i>战斗表达</h2>
+      <h3>面部就是生命值</h3>
+      <p>工人的瓷质面部同时承担角色形象、耐久显示和确认反馈。裂纹扩大、碎裂、冒出黑烟，玩家不需要血条就知道还差多少。</p>
+      <h3>光的两面</h3>
+      <p>手电让你看见，也让你被看见：被照亮的工人察觉距离大幅延长，广播期间手电直接招来巡夜人。枪口焰同样会照亮整个房间。</p>
+      <h3>同一动作，不同含义</h3>
+      <p>枪声、奔跑、手电在平时是力量，在广播期间是违规。规则改变动作的意义，操作本身保持不变。玩家需要学习的是新的判断，按键没有增加。</p>
+      <h3>下班</h3>
+      <p>工人是被困在夜班里的人，击碎面部就是让他们下班。摧毁考勤钟之后，车间里剩下的工人同时倒下，灯光转为暖色，广播说出“下班了”。结算评级沿用工厂的话语：先进工作者、生产标兵、合格、留厂察看。</p>
+      <h3>死亡即提示</h3>
+      <p>死亡画面的文案按死因给出：被咬、被主任冲撞、被巡夜人发现，每一条都对应一个可以执行的对策。</p>
+    </section>
+
+    <section id="d12">
+      <h2><i>十二、</i>公平性</h2>
+      <ul>
+        <li>每种攻击都有预警：哼唱停止与蓄力动作（工人）、咆哮（主任）、逐渐增强的静电噪声与画面干扰（巡夜人）、钟摆加速与密集的滴答声（报时）。</li>
+        <li>攻击令牌限制同时进攻的人数。</li>
+        <li>受击时屏幕边缘指示来袭方向，镜头冲击的方向与之一致。</li>
+        <li>被抓时显示挣脱进度和可用操作。</li>
+        <li>低生命时出现心跳声、画面去饱和与边缘泛红。</li>
+        <li>近距离内工人不再跳帧。</li>
+      </ul>
+    </section>
+
+    <section id="d13">
+      <h2><i>十三、</i>手感调试面板</h2>
+      <p>标题页与暂停菜单中的“手感调试”可以实时调整灵敏度、后坐力、屏幕震动、命中停顿、聚焦速度、同时进攻的敌人上限和亮度。反馈层可以逐项关闭：枪口焰照明、瞄准后坐、视觉冲击、枪模后坐、屏幕震动、命中停顿、视场冲击、受击形变、分层枪声、弹壳、弹孔与血迹、准星反馈、血液；聚焦、攻击令牌、跳帧、动态补给等系统也可以单独关闭。</p>
+      <p>先点“关闭全部反馈层”开一枪，再点“打开全部反馈层”开一枪，就能直接比较这些反馈对打击感的贡献。</p>
+    </section>
+
+    <section id="d14">
+      <h2><i>十四、</i>操作</h2>
+      <div class="tw"><table>
+        <tr><th>按键</th><th>操作</th><th>按键</th><th>操作</th></tr>
+        <tr><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>移动</td><td><kbd>Shift</kbd></td><td>奔跑</td></tr>
+        <tr><td>鼠标右键</td><td>瞄准，静止时聚焦</td><td>鼠标左键</td><td>射击；被抓时抵近射击</td></tr>
+        <tr><td><kbd>R</kbd></td><td>装填</td><td><kbd>V</kbd> / 空格</td><td>踢击、挣脱、踩踏</td></tr>
+        <tr><td><kbd>F</kbd></td><td>手电</td><td><kbd>Q</kbd></td><td>包扎</td></tr>
+        <tr><td><kbd>E</kbd></td><td>拾取、阅读</td><td><kbd>1</kbd> / <kbd>2</kbd></td><td>切换武器</td></tr>
+        <tr><td><kbd>Tab</kbd></td><td>查看任务</td><td><kbd>Esc</kbd></td><td>暂停</td></tr>
+      </table></div>
+    </section>
+
+    <section id="d15">
+      <h2><i>十五、</i>实现</h2>
+      <p>所有内容在浏览器中实时生成，没有使用外部模型、贴图或音频文件。贴图由画布噪声绘制；音效由 Web Audio 合成，包括分层枪声、按房间切换的卷积混响、HRTF 空间定位和墙体遮挡低通；人物动作由程序化姿态系统生成，受击形变由弹簧驱动；关卡由网格构建，敌人在 <span class="n">0.5</span> 米精度的导航网格上按流场寻路。渲染基于 Three.js，后期处理包括泛光、色差、暗角、胶片颗粒和异常状态下的画面扰动。</p>
+    </section>
+    <div class="end">第三处外勤技术科　存档</div>
+  </article>
+</div>
+
+<div id="tune" hidden></div>
+<div id="clickToResume" hidden>点击画面继续</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+window.THREE = THREE;
+const files = ['core', 'audio', 'textures', 'level', 'fx', 'player', 'weapons', 'hollow', 'watchman', 'clock', 'director', 'ui', 'render', 'main'];
+const fill = document.getElementById('loadFill');
+const bust = /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? '?v=' + Date.now() : '';
+for (let i = 0; i < files.length; i++) {
+  await new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'src/' + files[i] + '.js' + bust;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('无法加载 ' + s.src));
+    document.body.appendChild(s);
+  });
+  fill.style.width = (10 + 40 * (i + 1) / files.length) + '%';
+}
+window.dispatchEvent(new Event('game-scripts-ready'));
+</script>
